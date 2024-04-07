@@ -1,45 +1,25 @@
 const Book = require('../models/Book');
 const fs = require('fs');
-const sharp = require('sharp');
 
 exports.createBook = (req, res) => {
 
   const bookObject = JSON.parse(req.body.book);
   delete bookObject._id;
   delete bookObject._userId;
-  // Specify a different output path for the resized file
-  const resizedFileName = `resized-${req.file.filename.replace(/\.[^.]+$/, '')}.webp`;
-  const resizedImagePath = `./images/${resizedFileName}`;
 
-  // Use Sharp to resize the image
-  sharp(req.file.path)
-      .resize(206, 260)
-      .toFormat('webp')
-      .toFile(resizedImagePath, (err, info) => {
-          if (err) {
-              return res.status(401).json({ error: err.message });
-          }
-          // Delete the original file after resizing
-          fs.unlink(req.file.path, (unlinkErr) => {
-              if (unlinkErr) {
-                  console.error('Erreur lors de la suppression du fichier original:', unlinkErr);
-              }
-              // Create a Book object with resized URL
-              const book = new Book({
-                  ...bookObject,
-                  userId: req.auth.userId,
-                  imageUrl: `${req.protocol}://${req.get('host')}/images/${resizedFileName}`
-              });
-              // Save the book in the database
-              book.save()
-                  .then(() => {
-                      res.status(201).json({ message: 'Livre enregistré !' });
-                  })
-                  .catch(error => {
-                      res.status(401).json({ error: "Erreur lors de l'enregistrement !" });
-                  });
-          });
-      });
+    const book = new Book({
+        ...bookObject,
+        userId: req.auth.userId,
+        imageUrl: `${req.protocol}://${req.get('host')}/images/${req.file.filename}`
+    });
+  
+    book.save()
+    .then(() => {
+        res.status(201).json({ message: 'Livre enregistré !' });
+    })
+    .catch(error => {
+        res.status(401).json({ error: "Erreur lors de l'enregistrement !" });
+    });
 };
 
 exports.getOneBook = (req, res) => {
@@ -50,6 +30,7 @@ exports.getOneBook = (req, res) => {
 };
 
 exports.modifyBook = (req, res, next) => {
+    console.log(req.file);
     const bookObject = req.file ? {
         ...JSON.parse(req.body.book),
         imageUrl: `${req.protocol}://${req.get('host')}/images/${req.file.filename}`
